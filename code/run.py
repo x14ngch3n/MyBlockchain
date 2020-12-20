@@ -90,6 +90,7 @@ def main():
                        cons_sems[i],
                        add_sems[i],
                        mutex,
+                       1,
                    ))
         t.setDaemon(True)
         t.start()

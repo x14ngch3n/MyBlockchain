@@ -1,30 +1,71 @@
-from myblockchain import run_init, Nodes, node_num, round_times
+from myblockchain import run_init, Nodes, node_num, round_times, evil_Blockchain
 from threading import Thread, Semaphore
 import time
 
 curr_round = 1
 
 
-def run_node(node, cons_sem, add_sem, mutex):
+def run_node(node, cons_sem, add_sem, mutex, attack_mode):
     """
-    每一轮次开始前，先共识，再尝试生成新块，再更新到统一的区块链列表中
+    每一轮次开始前，先共识，再尝试生成新块，再更新到统一的区块链列表中。
+    通过标志位判断为分叉攻击（1）或是自私挖矿攻击（2），从而执行不同的轮次操作
     """
     global curr_round
-    while True:
-        # 等待主线程释放轮次开始的信号量
-        cons_sem.acquire()
-        # 进行节点共识，mutex用于实现对全局变量访问的互斥操作
-        mutex.acquire()
-        node.concensus()
-        mutex.release()
-        # 尝试生成新的区块
-        transactions = 'round:' + str(curr_round) + ' node:' + str(
-            node.address)
-        add_sem.acquire()
-        mutex.acquire()
-        node.Blockchain.add_newblock(transactions)
-        mutex.release()
-        # 节点和全局区块链列表指向同一个blockchain class，所以不需要额外的扩散操作
+    # 分叉攻击
+    if attack_mode == 1:
+        # 诚实节点的操作
+        if not node.is_evil:
+            while True:
+                # 等待主线程释放轮次开始的信号量
+                cons_sem.acquire()
+                # 进行节点共识，mutex用于实现对全局变量访问的互斥操作
+                mutex.acquire()
+                node.concensus()
+                mutex.release()
+                # 尝试生成新的区块
+                transactions = 'round:' + str(curr_round) + ' node:' + str(
+                    node.address)
+                add_sem.acquire()
+                mutex.acquire()
+                # 通过增加q的倍数来提高恶意节点的算力
+                for i in range(2):
+                    if node.Blockchain.add_newblock(transactions):
+                        break
+                mutex.release()
+                # 节点和全局区块链列表指向同一个blockchain class，所以不需要额外的扩散操作
+        # 恶意节点的操作
+        else:
+            node.evil_Blockchain = evil_Blockchain
+            while True:
+                # 等待主线程释放轮次开始的信号量
+                cons_sem.acquire()
+                # 尝试在恶意区块链上生成新的区块
+                add_sem.acquire()
+                transactions = '[!!!evil!!!]round:' + str(
+                    curr_round) + ' node:' + str(node.address)
+                mutex.acquire()
+                node.evil_Blockchain.add_newblock(transactions)
+                mutex.release()
+    # 自私挖矿攻击
+    elif attack_mode == 2:
+        while True:
+            # 等待主线程释放轮次开始的信号量
+            cons_sem.acquire()
+            # 进行节点共识，mutex用于实现对全局变量访问的互斥操作
+            mutex.acquire()
+            node.concensus()
+            mutex.release()
+            # 尝试生成新的区块
+            transactions = 'round:' + str(curr_round) + ' node:' + str(
+                node.address)
+            my_transactions = '[!!!selfish!!!]round:' + str(
+                curr_round) + ' node:' + str(node.address)
+            add_sem.acquire()
+            mutex.acquire()
+            node.Blockchain.add_newblock(transactions)
+            node.evil_Blockchain.add_newblock(my_transactions)
+            mutex.release()
+            # 节点和全局区块链列表指向同一个blockchain class，所以不需要额外的扩散操作
 
 
 def main():

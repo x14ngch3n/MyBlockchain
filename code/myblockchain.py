@@ -3,9 +3,9 @@ import time
 
 difficulty = 3
 q = 10000
-node_num = 5
 round_times = 5
-evil_rate = 0.1
+node_num = 5
+evil_num = 2
 
 
 class Block:
@@ -52,10 +52,9 @@ class Blockchain:
     """
     模拟区块链
     """
-    def __init__(self, is_evil=False):
+    def __init__(self):
         self.blocks = []
         self.create_genesisblock()
-        self.is_evil = is_evil
 
     def get_index(self):
         """
@@ -159,16 +158,21 @@ class Node:
 
 
 Nodes = []
+evil_Nodes = []
 Blockchains = []
+evil_Blockchain = Blockchain()
 
 
 def run_init():
     """
     初始化全局变量
     """
-    # 初始化全局的节点列表
+    # 初始化全局的正常节点列表和恶意节点列表
     for i in range(node_num):
-        Nodes.append(Node(i))
+        if i < evil_num:
+            evil_Nodes.append(Node(i))
+        else:
+            Nodes.append(Node(i))
     # 初始化全局的区块链列表
     for i in range(node_num):
         Blockchains.append(Nodes[i].Blockchain)
